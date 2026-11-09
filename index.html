@@ -1,158 +1,206 @@
-<!doctype html>
+<!DOCTYPE html>
+
 <html lang="en-GB">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="LowRAM: low-rank keys and amortised values for composable KV cache compression. Explore the method and replay real benchmark results.">
-  <title>LowRAM — More context. Less memory.</title>
-  <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=article-3">
-  <script src="app.js?v=article-3" defer></script>
-</head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="Up to 26.9× KV-cache compression, retaining 94.5% of the uncompressed LongBench score on Mistral-7B (&gt;10K tokens), with quantisation and eviction." name="description"/>
+<title>LowRAM — Why spend memory on what you can predict?</title>
+<link href="https://lowram-model.github.io/" rel="canonical"/>
+<meta content="website" property="og:type"/>
+<meta content="LowRAM" property="og:site_name"/>
+<meta content="https://lowram-model.github.io/" property="og:url"/>
+<meta content="LowRAM — Why spend memory on what you can predict?" property="og:title"/>
+<meta content="Up to 26.9× KV-cache compression, retaining 94.5% of the uncompressed LongBench score on Mistral-7B (&gt;10K tokens), with quantisation and eviction." property="og:description"/>
+<meta content="https://lowram-model.github.io/og.png" property="og:image"/>
+<meta content="1200" property="og:image:width"/>
+<meta content="630" property="og:image:height"/>
+<meta content="LowRAM: up to 26.9× KV-cache compression, retaining 94.5% of the uncompressed LongBench score. Mistral-7B, prompts longer than 10K tokens; LowRAM plus quantisation and eviction." property="og:image:alt"/>
+<meta content="summary_large_image" name="twitter:card"/>
+<link href="favicon.svg" rel="icon" type="image/svg+xml"/>
+<link href="styles.css?v=review-1" rel="stylesheet"/>
+<script defer="True" src="offline-data.js"></script><script defer="" src="app.js?v=review-1"></script>
+<meta content="LowRAM — Why spend memory on what you can predict?" name="twitter:title"/><meta content="Up to 26.9× KV-cache compression, retaining 94.5% of the uncompressed LongBench score on Mistral-7B (&gt;10K tokens), with quantisation and eviction." name="twitter:description"/><meta content="https://lowram-model.github.io/og.png" name="twitter:image"/><meta content="LowRAM: up to 26.9× KV-cache compression, retaining 94.5% of the uncompressed LongBench score. Mistral-7B, prompts longer than 10K tokens; LowRAM plus quantisation and eviction." name="twitter:image:alt"/></head>
 <body>
-  <a class="skip" href="#main">Skip to content</a>
-  <header class="site-header">
-    <div class="page-wide header-row">
-      <a class="wordmark" href="#">LowRAM</a>
-      <nav aria-label="Main navigation"><a href="#demo">Demo</a><a href="#method">Method</a><a href="#evidence">Results</a><a href="https://arxiv.org/abs/2611.07025v1">Paper</a><a href="https://github.com/lowram-model/lowram">Code</a></nav>
-    </div>
-  </header>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+<div class="page-wide header-row">
+<a class="wordmark" href="#">LowRAM</a>
+<nav aria-label="Main navigation"><a href="#demo">Demo</a><a href="#method">Method</a><a href="#evidence">Results</a><a href="https://arxiv.org/abs/2611.07025">Paper</a><a href="https://github.com/lowram-model/lowram">Code</a><a href="https://huggingface.co/papers/2611.07025">Hugging Face</a><a href="#citation">Cite</a></nav>
+</div>
+</header>
+<main id="main">
+<article>
+<header class="title-block col">
+<h1>LowRAM</h1>
+<p class="tagline">Why spend memory on what you can predict?</p>
+<p class="lede">LowRAM compresses the KV cache used by long-context LLMs. It reconstructs values from their keys, keeps corrections for the hardest-to-predict values, and compresses keys across layers.</p>
+<p class="adaptation-note"><strong>Base-model weights stay frozen.</strong> Lightweight predictors adapt to each prompt.</p>
+<div aria-label="Headline results from separate experimental settings" class="hero-stats" role="list">
+<div role="listitem"><a class="stat-card" href="#accuracy-results">
+<span class="stat-value"><span class="stat-prefix">Up to</span><b>26.9×</b></span>
+<span class="stat-label">KV-cache compression</span>
+<span class="stat-quality">Retaining <strong>94.5%</strong> of the uncompressed LongBench score</span>
+<span class="stat-setting">LowRAM + quantisation + eviction</span>
+</a></div>
+<div role="listitem"><a class="stat-card" href="#accuracy-results">
+<span class="stat-value"><span aria-hidden="true" class="stat-prefix"> </span><b>17.8×</b></span>
+<span class="stat-label">KV-cache compression</span>
+<span class="stat-quality">Retaining <strong>98%</strong> of the uncompressed LongBench score</span>
+<span class="stat-setting">LowRAM + quantisation + eviction</span>
+</a></div>
+<div role="listitem"><a class="stat-card" href="#throughput-results">
+<span class="stat-value"><span class="stat-prefix">Up to</span><b>5×</b></span>
+<span class="stat-label">Higher peak decode throughput</span>
+<span class="stat-quality">At <strong>262K-token context</strong>, with a 4× compression target</span>
+<span class="stat-setting">LowRAM with selective reconstruction</span>
+</a></div>
+</div>
+<p class="result-scope">Compression: Mistral-7B, LongBench prompts longer than 10K tokens. Throughput: Llama-3.1-8B, comparing peak decode throughput across batch sizes. These are separate experimental settings.</p>
+<p class="title-links"><a class="primary-link" href="https://github.com/lowram-model/lowram#quickstart">Get started <span aria-hidden="true">↗</span></a><a href="#demo">Explore the <span class="context-label">128K</span> demo</a><a href="https://huggingface.co/papers/2611.07025">Hugging Face</a><a href="https://arxiv.org/abs/2611.07025">Read the paper</a></p>
+<div class="paper-details">
+<p class="paper-title">LowRAM: Low-Rank Keys and Amortised Values for Composable KV Cache Compression at Test-Time</p>
+<p class="authors">Teresa Delgado <span>·</span> Hugo Hazard <span>·</span> Martin Benfeghoul <span>·</span> Jun Wang <span>·</span> Zafeirios Fountas</p>
+</div>
+</header>
+<figure class="teaser col">
+<div class="teaser-row"><span class="teaser-label">Conventional KV cache<small>every key and value</small></span><div aria-hidden="true" class="cache-grid full-grid"></div></div>
+<div class="teaser-row"><span class="teaser-label">LowRAM<small>reconstructed when needed</small></span><div aria-hidden="true" class="teaser-compressed"><div class="cache-grid small-grid"></div><span class="op">+</span><span class="predictor-symbol">ƒ<sub>θ</sub></span><span class="op">+</span><div class="residual-grid"><i></i><i></i><i></i><i></i><i></i><i></i></div></div></div>
+<figcaption><b>Figure 1.</b> A conventional cache stores every key and value. LowRAM stores <span class="swatch key-swatch"></span>low-rank keys, <span class="swatch value-swatch"></span>a value predictor ƒ<sub>θ</sub> fitted to the context, and <span class="swatch residual-swatch"></span>sparse corrections for the values it predicts worst.</figcaption>
+<aside aria-label="Value-compression result" class="core-result" id="value-result">
+<p class="core-heading">Predict values. Keep the exceptions.</p>
+<p><strong>4× value-cache compression</strong>, retaining <strong>99.3%</strong> of the uncompressed LongBench score.</p>
+<small>Llama-3.1-8B · values only · paper Table 5</small>
+</aside></figure>
+<section id="demo">
+<div class="col">
+<h2><span class="secnum">1</span>Can a smaller cache keep the details?</h2>
+<p>Three access codes are hidden in a <span class="context-label">128K</span>-token document. Compare recorded uncompressed and LowRAM runs to see which details they recover, how much KV-cache memory they use, and how inference performance changes.</p>
+</div>
+<figure class="demo page-wide">
+<div class="demo-toolbar"><p><strong id="run-label">Loading recorded run…</strong> <span id="run-model"></span></p><p class="fixed-settings"><span class="context-label">128K</span> tokens per sequence · <span id="run-batch">—</span> · 4× compression target</p><p class="hardware-line" id="run-hardware">GPU: loading recorded metadata…</p></div>
+<p hidden="" id="load-error" role="alert"></p>
+<div class="controls">
+<label>LowRAM configuration<select disabled="" id="method-select"></select></label>
+<label>Batch size<select disabled="" id="batch-select"></select></label>
+</div>
+<p aria-live="polite" class="baseline-note" hidden="" id="baseline-note" role="status"></p>
+<div class="challenge">
+<div class="document-panel">
+<div class="panel-heading"><span>The document</span><button aria-controls="document-text" aria-expanded="false" class="plain-button" id="document-toggle">Read document</button></div>
+<div aria-label="Relevant fact positions within the document" class="document-map" id="document-map"></div>
+<div class="map-axis"><span>Beginning</span><span>End</span></div>
+<div class="facts" id="facts"></div>
+<pre hidden="" id="document-text"></pre>
+<div class="question-box"><span class="panel-label">The question</span><p id="question">Loading…</p></div>
+</div>
+<div class="answers-panel">
+<div class="answer-card"><div class="panel-heading"><span><i class="legend-dot baseline-color"></i><span id="baseline-answer-label">Uncompressed</span></span><span class="answer-score" id="baseline-score">—</span></div><p class="answer-text" id="baseline-answer">Waiting for the recorded result.</p><div class="answer-checks" id="baseline-checks"></div></div>
+<div class="answer-card"><div class="panel-heading"><span><i class="legend-dot lowram-color"></i><span id="answer-method">LowRAM</span></span><span class="answer-score" id="lowram-score">—</span></div><p class="answer-text" id="lowram-answer">Waiting for the recorded result.</p><div class="answer-checks" id="lowram-checks"></div></div>
+</div>
+</div>
+<div class="metrics-area">
+<div class="memory-comparison">
+<div class="panel-heading"><span>Physical prefill cache</span><span id="memory-saving">—</span></div>
+<div class="memory-row"><span id="baseline-memory-label">Baseline</span><div class="bar-track"><div class="bar baseline-color" id="baseline-bar"></div></div><strong id="baseline-memory">—</strong></div>
+<div class="memory-row"><span id="lowram-memory-label">LowRAM</span><div class="bar-track"><div class="bar lowram-color" id="lowram-bar"></div></div><strong id="lowram-memory">—</strong></div>
+</div>
+<div class="table-scroll"><table class="metric-table"><caption class="sr-only">Performance comparison for the selected configuration</caption><thead><tr><th scope="col">Measured metric</th><th id="baseline-column" scope="col">Baseline</th><th id="lowram-column" scope="col">LowRAM</th></tr></thead><tbody id="metric-rows"></tbody></table></div>
+</div><details class="baseline-reference" hidden="" id="baseline-reference">
+<summary>Show a smaller-batch baseline for reference</summary>
+<p id="reference-setting"></p><p class="answer-text" id="reference-answer"></p><p id="reference-memory"></p>
+</details>
+<figcaption><b>Figure 2.</b> Recorded model outputs, not live inference. Answer scores refer to the displayed three-code example; “Suite fact recall” summarises the recorded retrieval suite. Cache sizes are mean bytes per batch, including the stored predictor and cache metadata, and exclude model weights. Comparisons use the selected batch size on both sides.</figcaption>
+</figure>
+</section>
+<section id="method">
+<div class="col">
+<h2><span class="secnum">2</span>Store the pattern, keep the exceptions</h2>
+<p>Keys and values come from the same hidden states. LowRAM uses that relationship to store less, in four steps. Select a step to see it.</p>
+</div>
+<div class="method-layout page-wide">
+<ol aria-label="Explore the compression steps" class="method-steps">
+<li><button aria-pressed="true" class="method-step active" data-step="0"><span class="step-num">1</span><span><b>Compress the keys.</b> Nearby layers share a low-rank structure. Store compact factors instead of every full key.</span></button><sup class="cite"><a aria-label="Reference 1: xKV" href="#ref-xkv">1</a></sup></li>
+<li><button aria-pressed="false" class="method-step" data-step="1"><span class="step-num">2</span><span><b>Predict the values.</b> A lightweight predictor adapts to the current prompt to reconstruct values from keys.</span></button></li>
+<li><button aria-pressed="false" class="method-step" data-step="2"><span class="step-num">3</span><span><b>Keep the exceptions.</b> Use the remaining memory for corrections to the values that are hardest to predict.</span></button></li>
+<li><button aria-pressed="false" class="method-step" data-step="3"><span class="step-num">4</span><span><b>Retrieve what matters.</b> Selective reconstruction retrieves chunks for the current query and reuses them across steps.</span></button><sup class="cite"><a aria-label="Reference 2: ShadowKV" href="#ref-shadowkv">2</a></sup></li>
+</ol>
+<figure class="method-visual">
+<div aria-hidden="true" class="visual-stage" id="visual-stage"></div>
+<p class="formula" id="method-formula">K ≈ A · B</p>
+<figcaption><b>Figure 3.</b> <span id="method-title">Shared structure, smaller keys.</span> <span id="method-caption">A shared factor captures patterns across a group of layers. Each layer keeps its own smaller reconstruction factor.</span></figcaption>
+</figure>
+</div>
+</section>
+<section id="evidence">
+<div class="col">
+<h2><span class="secnum">3</span>Results</h2>
+<p>Explore the tradeoffs between cache size, retained benchmark score and decode throughput. Select a point to inspect its result and settings.</p>
+</div>
+<figure class="page-wide chart-figure" id="accuracy-results" tabindex="-1">
+<div class="chart" id="accuracy-chart"></div>
+<div aria-live="polite" class="point-detail" id="accuracy-detail">Select a point to inspect its result.</div>
+<figcaption><b>Figure 4.</b> How much performance is retained? Mistral-7B on LongBench contexts longer than 10K tokens (paper Table 11). Recovered score = method score / uncompressed score × 100.</figcaption>
+</figure>
+<figure class="page-wide chart-figure" id="throughput-results" tabindex="-1">
+<div class="chart" id="throughput-chart"></div>
+<div aria-live="polite" class="point-detail" id="throughput-detail">Select a measured point to inspect its settings.</div>
+<figcaption><b>Figure 5.</b> When does compression help throughput? Llama-3.1-8B, 262K tokens, 4× target. Five repeats, two warmups, 128 decode steps. Points marked OOM ran out of memory. Peak throughput is compared across batch sizes; it is not a 5× speedup for every request. The uncompressed baseline is faster at small batches in this sweep.</figcaption>
+</figure>
+</section>
+<section class="col" id="reproduce">
+<h2><span class="secnum">4</span>Try it yourself</h2>
+<p>Start with a small retrieval example, then measure the tradeoffs on your own workload.</p>
+<p class="requirements"><strong>Requirements:</strong> Python 3.12, a CUDA GPU, Git LFS and access to the selected model. The supplied demo supports Llama and Mistral. The default Llama model requires approved Hugging Face access.</p>
+<h3>Run the demo</h3>
+<p>Start with a 4K-token document and a 4× cache-compression target. Use the fast preset, then compare its answer with the uncompressed baseline.</p><div class="code-block"><div class="code-toolbar"><span>Setup</span><button aria-label="Copy setup" class="plain-button copy-button" data-copy-target="setup-command" type="button">Copy</button></div><pre id="setup-command" tabindex="0">git clone https://github.com/lowram-model/lowram
+cd lowram
+git lfs install
+git lfs pull
+conda create -n lowram python=3.12 -y
+conda activate lowram
+pip install -r requirements.txt</pre></div>
+<p class="setup-note">If needed, create or edit <code>.env</code> in the repository root and add <code>HF_TOKEN="&lt;your_huggingface_token&gt;"</code>. Keep any existing settings and never commit this file.</p><div class="code-block"><div class="code-toolbar"><span>Run the demo</span><button aria-label="Copy run the demo" class="plain-button copy-button" data-copy-target="demo-command" type="button">Copy</button></div><pre id="demo-command" tabindex="0"># Fast LowRAM preset
+python -m examples.lowram_demo --method fast
 
-  <main id="main">
-    <article>
-      <header class="title-block col">
-        <h1>LowRAM</h1>
-        <p class="subtitle">Low-rank keys and amortised values for composable KV cache compression at test time</p>
-        <p class="lede">Why store what you can predict? LowRAM reconstructs values from keys and keeps only what it can't predict.</p>
-        <p class="title-links"><a href="https://arxiv.org/abs/2611.07025v1">Read the paper</a><a href="https://github.com/lowram-model/lowram">Code</a><a href="#demo">Explore the demo</a></p>
-      </header>
-
-      <figure class="teaser col">
-        <div class="teaser-row"><span class="teaser-label">Conventional KV cache<small>every key and value</small></span><div class="cache-grid full-grid" aria-hidden="true"></div></div>
-        <div class="teaser-row"><span class="teaser-label">LowRAM<small>reconstructed when needed</small></span><div class="teaser-compressed" aria-hidden="true"><div class="cache-grid small-grid"></div><span class="op">+</span><span class="predictor-symbol">ƒ<sub>θ</sub></span><span class="op">+</span><div class="residual-grid"><i></i><i></i><i></i><i></i><i></i><i></i></div></div></div>
-        <figcaption><b>Figure 1.</b> A conventional cache stores every key and value. LowRAM stores <span class="swatch key-swatch"></span>low-rank keys, <span class="swatch value-swatch"></span>a value predictor ƒ<sub>θ</sub> fitted to the context, and <span class="swatch residual-swatch"></span>sparse corrections for the values it predicts worst.</figcaption>
-      </figure>
-
-      <section class="col" aria-label="Selected findings from the paper">
-        <table class="highlights">
-          <caption><b>Table 1.</b> Selected results from the paper. Settings differ between rows.</caption>
-          <tbody>
-            <tr><th scope="row">4×</th><td>value-cache compression, keeping 99.3% of the uncompressed LongBench score</td><td class="source">Llama-3.1-8B, values only<br>Table 5</td></tr>
-            <tr><th scope="row">26.9×</th><td>combined with eviction and quantisation, 94.5% recovered score on long contexts</td><td class="source">Mistral-7B, LongBench &gt;10K<br>Table 11</td></tr>
-            <tr><th scope="row">2</th><td>adaptation steps with meta-initialisation: faster prefill, with an accuracy tradeoff</td><td class="source">Meta-initialised LowRAM<br>Table 2</td></tr>
-          </tbody>
-        </table>
-      </section>
-
-      <section id="demo">
-        <div class="col">
-          <h2><span class="secnum">1</span>Can it keep the details?</h2>
-          <p>Three facts are tucked inside a <span class="context-label">64K</span>-token document, and the model is asked for all three. Pick a LowRAM configuration and a batch size to compare the recorded answers, and the memory they take, with the uncompressed model.</p>
-        </div>
-        <figure class="demo page-wide">
-          <div class="demo-toolbar"><p><strong id="run-label">Loading recorded run…</strong> <span id="run-model"></span></p><p class="fixed-settings"><span class="context-label">64K</span> tokens per sequence · 4× compression</p></div>
-          <p id="load-error" role="alert" hidden></p>
-          <div class="controls">
-            <label>LowRAM configuration<select id="method-select" disabled></select></label>
-            <label>Batch size<select id="batch-select" disabled></select></label>
-          </div>
-          <p id="baseline-note" class="baseline-note" role="status" hidden></p>
-          <div class="challenge">
-            <div class="document-panel">
-              <div class="panel-heading"><span>The document</span><button id="document-toggle" class="plain-button" aria-expanded="false" aria-controls="document-text">Read document</button></div>
-              <div class="document-map" id="document-map" aria-label="Relevant fact positions within the document"></div>
-              <div class="map-axis"><span>Beginning</span><span>End</span></div>
-              <div id="facts" class="facts"></div>
-              <pre id="document-text" hidden></pre>
-              <div class="question-box"><span class="panel-label">The question</span><p id="question">Loading…</p></div>
-            </div>
-            <div class="answers-panel">
-              <div class="answer-card"><div class="panel-heading"><span><i class="legend-dot baseline-color"></i><span id="baseline-answer-label">Uncompressed</span></span><span id="baseline-score" class="answer-score">—</span></div><p class="answer-text" id="baseline-answer">Waiting for the recorded result.</p><div id="baseline-checks" class="answer-checks"></div></div>
-              <div class="answer-card"><div class="panel-heading"><span><i class="legend-dot lowram-color"></i><span id="answer-method">LowRAM</span></span><span id="lowram-score" class="answer-score">—</span></div><p class="answer-text" id="lowram-answer">Waiting for the recorded result.</p><div id="lowram-checks" class="answer-checks"></div></div>
-            </div>
-          </div>
-          <div class="metrics-area">
-            <div class="memory-comparison">
-              <div class="panel-heading"><span>Physical prefill cache</span><span id="memory-saving">—</span></div>
-              <div class="memory-row"><span id="baseline-memory-label">Baseline</span><div class="bar-track"><div id="baseline-bar" class="bar baseline-color"></div></div><strong id="baseline-memory">—</strong></div>
-              <div class="memory-row"><span id="lowram-memory-label">LowRAM</span><div class="bar-track"><div id="lowram-bar" class="bar lowram-color"></div></div><strong id="lowram-memory">—</strong></div>
-            </div>
-            <div class="table-scroll"><table class="metric-table"><caption class="sr-only">Performance comparison for the selected configuration</caption><thead><tr><th scope="col">Measured metric</th><th scope="col" id="baseline-column">Baseline</th><th scope="col" id="lowram-column">LowRAM</th></tr></thead><tbody id="metric-rows"></tbody></table></div>
-          </div>
-          <figcaption><b>Figure 2.</b> Recorded model outputs. Answers are scored against the document’s reference facts. Cache sizes are mean bytes per batch, including the stored predictor and cache metadata, and exclude model weights.</figcaption>
-        </figure>
-      </section>
-
-      <section id="method">
-        <div class="col">
-          <h2><span class="secnum">2</span>Store the pattern, keep the exceptions</h2>
-          <p>Keys and values come from the same hidden states. LowRAM uses that relationship to store less, in four steps. Select a step to see it.</p>
-        </div>
-        <div class="method-layout page-wide">
-          <ol class="method-steps" aria-label="Explore the compression steps">
-            <li><button class="method-step active" data-step="0" aria-pressed="true"><span class="step-num">1</span><span><b>Compress the keys.</b> Nearby layers share a low-rank structure. Store compact factors instead of every full key.</span></button><sup class="cite"><a href="#ref-xkv" aria-label="Reference 1: xKV">1</a></sup></li>
-            <li><button class="method-step" data-step="1" aria-pressed="false"><span class="step-num">2</span><span><b>Learn the values.</b> A small predictor fits the current context, learning how to reconstruct values from keys.</span></button></li>
-            <li><button class="method-step" data-step="2" aria-pressed="false"><span class="step-num">3</span><span><b>Keep the exceptions.</b> Use the remaining memory for corrections to the values that are hardest to predict.</span></button></li>
-            <li><button class="method-step" data-step="3" aria-pressed="false"><span class="step-num">4</span><span><b>Retrieve what matters.</b> Selective reconstruction retrieves chunks for the current query and reuses them across steps.</span></button><sup class="cite"><a href="#ref-shadowkv" aria-label="Reference 2: ShadowKV">2</a></sup></li>
-          </ol>
-          <figure class="method-visual">
-            <div class="visual-stage" id="visual-stage" aria-hidden="true"></div>
-            <p class="formula" id="method-formula">K ≈ A · B</p>
-            <figcaption><b>Figure 3.</b> <span id="method-title">Shared structure, smaller keys.</span> <span id="method-caption">A shared factor captures patterns across a group of layers. Each layer keeps its own smaller reconstruction factor.</span></figcaption>
-          </figure>
-        </div>
-      </section>
-
-      <section id="evidence">
-        <div class="col">
-          <h2><span class="secnum">3</span>Results</h2>
-          <p>Quality, speed and capacity tell different parts of the story, so they are shown separately. Hover over or focus a point to read its value.</p>
-        </div>
-        <figure class="page-wide chart-figure">
-          <div id="accuracy-chart" class="chart"></div>
-          <div id="accuracy-detail" class="point-detail" aria-live="polite">Select a point to inspect its result.</div>
-          <figcaption><b>Figure 4.</b> How much performance is retained? Mistral-7B on LongBench contexts longer than 10K tokens (paper Table 11). Recovered score = method score / uncompressed score × 100.</figcaption>
-        </figure>
-        <figure class="page-wide chart-figure">
-          <div id="throughput-chart" class="chart"></div>
-          <div id="throughput-detail" class="point-detail" aria-live="polite">Select a measured point to inspect its settings.</div>
-          <figcaption><b>Figure 5.</b> When does compression help throughput? Llama-3.1-8B, 262K tokens, 4× target. Five repeats, two warmups, 128 decode steps. Points marked OOM ran out of memory.</figcaption>
-        </figure>
-      </section>
-
-      <section id="reproduce" class="col">
-        <h2><span class="secnum">4</span>Try it yourself</h2>
-        <p>Run the readable example, measure the tradeoffs, and inspect the recorded measurements. Commands run from the repository root.</p>
-        <div class="code-block">
-          <button id="copy-command" class="plain-button">Copy</button>
-          <pre id="reproduce-command"># Activate the environment and install required packages
-# Generate an answer with a compressed cache
-python -m examples.lowram_demo
-
-# Compare memory, throughput, latency and accuracy
-python -m benchmarks.compare \
+# Uncompressed baseline
+python -m examples.lowram_demo --method baseline</pre></div>
+<p class="setup-note">The demo prints the question, reference codes, generated answer and fact-recall score. The <code>fast</code> preset uses meta-initialised value prediction, two fitting steps and selective reconstruction. Use <code>--method lowram</code> for the full-adaptation preset with more fitting steps.</p>
+<details class="reproduction-details"><summary>Reproduce the larger benchmark</summary>
+<p>This runs the larger comparison and requires substantially more GPU memory than the introductory demo. Commands run from the repository root.</p><div class="code-block"><div class="code-toolbar"><span>Benchmark comparison</span><button aria-label="Copy benchmark comparison" class="plain-button copy-button" data-copy-target="reproduce-command" type="button">Copy</button></div><pre id="reproduce-command" tabindex="0">python -m benchmarks.compare \
   --methods baseline fast lowram \
-  --meta-weights /path/to/meta_mlps.pt \
+  --meta-weights checkpoints/meta_init/Llama-3.1-8B-Instruct/meta_mlps.pt \
   --contexts 131072 --batch-sizes 1 2 4 6 8 12 \
   --ratios 4 --samples 24 --repeats 2 --warmup 1 \
   --decode-tokens 48 \
-  --output results/demo/comparison.json</pre>
-        </div>
-      </section>
-
-      <section id="references" class="col">
-        <h2>References</h2>
-        <ol class="references">
-          <li id="ref-xkv">Chang et al. <a href="https://arxiv.org/abs/2503.18893">xKV: Cross-Layer SVD for KV-Cache Compression</a>. arXiv:2503.18893, 2025.</li>
-          <li id="ref-shadowkv">Sun et al. <a href="https://arxiv.org/abs/2410.21465">ShadowKV: KV Cache in Shadows for High-Throughput Long-Context LLM Inference</a>. ICML 2025.</li>
-        </ol>
-      </section>
-    </article>
-  </main>
-
-  <footer class="site-footer">
-    <div class="page-wide footer-row"><span>LowRAM · Low-rank keys and amortised values for composable KV cache compression at test time.</span><span class="footer-links"><a href="https://arxiv.org/abs/2611.07025v1">Paper</a><a href="https://github.com/lowram-model/lowram">Code</a></span></div>
-  </footer>
-  <noscript><p class="col">Enable JavaScript for the interactive demo. The paper remains available.</p></noscript>
-</body>
+  --output results/demo/comparison.json</pre></div>
+<p class="setup-note">The two scripts currently initialise the full-adaptation <code>lowram</code> preset differently: the small demo loads value-MLP warm-start weights, while this comparison script does not pass those weights. Treat their outputs as separate configurations, not identical reruns.</p>
+</details>
+<p class="docs-link"><a href="https://github.com/lowram-model/lowram#quickstart">Full quickstart, checkpoints and integration example <span aria-hidden="true">↗</span></a></p>
+</section>
+<section class="col" id="references">
+<h2>References</h2>
+<ol class="references">
+<li id="ref-xkv">Chang et al. <a href="https://arxiv.org/abs/2503.18893">xKV: Cross-Layer SVD for KV-Cache Compression</a>. arXiv:2503.18893, 2025.</li>
+<li id="ref-shadowkv">Sun et al. <a href="https://arxiv.org/abs/2410.21465">ShadowKV: KV Cache in Shadows for High-Throughput Long-Context LLM Inference</a>. ICML 2025.</li>
+</ol>
+</section><section class="col" id="citation"><h2>Cite LowRAM</h2><p>Using LowRAM in your research? Please cite our paper.</p><div class="code-block"><div class="code-toolbar"><span>BibTeX</span><button aria-label="Copy bibtex" class="plain-button copy-button" data-copy-target="bibtex" type="button">Copy BibTeX</button></div><pre id="bibtex" tabindex="0">@article{lowram2026,
+  title   = {{LowRAM}: Low-Rank Keys and Amortised Values for
+             Composable {KV} Cache Compression at Test-Time},
+  author  = {Delgado, Teresa and Hazard, Hugo and
+             Benfeghoul, Martin and Wang, Jun and
+             Fountas, Zafeirios},
+  journal = {arXiv preprint arXiv:2611.07025},
+  year    = {2026},
+  doi     = {10.48550/arXiv.2611.07025},
+  url     = {https://arxiv.org/abs/2611.07025}
+}</pre></div><p class="citation-links"><a href="https://arxiv.org/abs/2611.07025">View the paper on arXiv</a></p></section>
+</article>
+</main>
+<footer class="site-footer">
+<div class="page-wide footer-row"><span>LowRAM · Low-rank keys and amortised values for composable KV cache compression at test time.</span><span class="footer-links"><a href="https://arxiv.org/abs/2611.07025">Paper</a><a href="https://github.com/lowram-model/lowram">Code</a><a href="https://huggingface.co/papers/2611.07025">Hugging Face</a><a href="#citation">Cite</a></span></div>
+</footer>
+<noscript><p class="col">Enable JavaScript for the interactive demo. The paper remains available.</p></noscript>
+<p aria-live="polite" class="sr-only" id="copy-status" role="status"></p></body>
 </html>
+
